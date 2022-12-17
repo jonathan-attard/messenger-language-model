@@ -96,8 +96,12 @@ checkpoint_callback = tf.keras.callbacks.ModelCheckpoint(
     filepath=checkpoint_prefix,
     save_weights_only=True)
 
-EPOCHS = 20
+EPOCHS = 1000
 
 if __name__ == "__main__":
+    if os.path.exists(checkpoint_dir):
+        latest = tf.train.latest_checkpoint(checkpoint_dir)
+        model.load_weights(latest)
+
     history = model.fit(dataset, epochs=EPOCHS, callbacks=[checkpoint_callback])
     # pass

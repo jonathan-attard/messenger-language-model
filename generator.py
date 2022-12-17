@@ -3,6 +3,7 @@ import numpy as np
 import os
 import time
 from train import *
+from preproccess import SPECIAL_CHARS, END_RESPONSE, END_QUERY
 
 latest = tf.train.latest_checkpoint(checkpoint_dir)
 
@@ -57,16 +58,61 @@ class OneStep(tf.keras.Model):
 
 one_step_model = OneStep(model, chars_from_ids, ids_from_chars)
 
-start = time.time()
-states = None
-next_char = tf.constant(['abċdefġgg'])
-result = [next_char]
 
-for n in range(10):
-  next_char, states = one_step_model.generate_one_step(next_char, states=states)
-  result.append(next_char)
+def getResp(chars):
+    states = None
+    next_char = tf.constant([chars])
+    results = [next_char]
 
-result = tf.strings.join(result)
-end = time.time()
-print(result[0].numpy().decode('utf-8'), '\n\n' + '_'*80)
-print('\nRun time:', end - start)
+    response = list()
+    resp_temp = ""
+
+    speaker = None
+
+    for n in range(1000):
+        next_char, states = one_step_model.generate_one_step(next_char, states=states)
+        results.append(next_char)
+
+        next_char_decoded = next_char.numpy()[0].decode('utf-8')
+
+        if next_char_decoded in [END_RESPONSE, END_QUERY]:
+            if speaker is None:
+                speaker = next_char_decoded
+            elif speaker != next_char_decoded:
+                break
+
+            response.append(resp_temp)
+            resp_temp = ""
+        elif next_char_decoded in SPECIAL_CHARS:
+            break
+        else:
+            resp_temp += next_char_decoded
+
+    # results = tf.strings.join(results)
+    # result = results[0].numpy().decode('utf-8')
+
+    # response = result[len(chars):]
+
+    return response
+
+
+if __name__ == "__main__":
+    # one_step_model = OneStep(model, chars_from_ids, ids_from_chars)
+    #
+    # start = time.time()
+    # states = None
+    # next_char = tf.constant(['kif int?$'])
+    # result = [next_char]
+    #
+    # for n in range(1000):
+    #     next_char, states = one_step_model.generate_one_step(next_char, states=states)
+    #     result.append(next_char)
+    #
+    # result = tf.strings.join(result)
+
+    start = time.time()
+    result = getResp("kif int?$")
+
+    end = time.time()
+    print(result, '\n\n' + '_' * 80)
+    print('\nRun time:', end - start)
