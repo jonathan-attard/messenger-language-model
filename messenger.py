@@ -3,6 +3,7 @@ import datetime
 import pickle
 import json
 import random
+import sys
 from enum import Enum
 import time
 import os
@@ -25,6 +26,7 @@ from selenium.webdriver.common.by import By
 from selenium.webdriver.common.keys import Keys
 import pyperclip
 import urllib
+import logging
 
 from preproccess import END_QUERY, END_RESPONSE
 from generator import getResp
@@ -32,11 +34,24 @@ from profanity import profanity
 
 
 class Messenger:
-    def __init__(self, base_url_check=None, limit_resp=5, headless=True, debug=False, disable_profanity=True):
+    def __init__(self, base_url_check=None, limit_resp=5, headless=True, log=False, disable_profanity=True, log_file="events.log"):
         self.base_url_check = base_url_check
         self.limit_resp = limit_resp
-        self.debug = debug
+        self.log = log
         self.disable_profanity = disable_profanity
+
+        # Logging
+        log_handlers = [
+            logging.StreamHandler()
+        ]
+        if log_file is not None:
+            log_handlers.append(logging.FileHandler("events.log"))
+        logging.basicConfig(
+            handlers=log_handlers,
+            format='%(asctime)s %(message)s',
+            level=logging.INFO,
+            datefmt='%Y-%m-%d %H:%M:%S',
+        )
 
         dir_path = os.getcwd()
 
@@ -59,10 +74,6 @@ class Messenger:
 
         self.driver = webdriver.Chrome(service=Service(ChromeDriverManager().install()), options=op)
 
-        # self.login()
-        # self.startPopup()
-        # time.sleep()
-
     def goURL(self, url, force_reload=False):
         if not force_reload and url == self.driver.current_url:
             return
@@ -70,33 +81,31 @@ class Messenger:
             self.driver.get(url)
 
     def start(self):
+        logging.info("Starting messenger")
         self.driver.get("https://www.messenger.com")
 
         login = self.waitLogin()
         if not login:
             self.close()
+            return
 
     def close(self):
-        if self.debug:
-            print("Closing driver...\n")
+        logging.info("Closing driver")
 
         self.driver.close()
 
     def waitLogin(self, timeout=100000):
-        if self.debug:
-            print("Waiting for login...\n")
+        logging.info("Waiting for login")
 
         chats = WebDriverWait(self.driver, timeout).until(
             presence_of_all_elements_located((By.XPATH, "//h1[text()='Chats']")))
 
         if len(chats) > 0:
-            if self.debug:
-                print("Login successful...\n")
+            logging.info("Login successful")
 
             return True
         else:
-            if self.debug:
-                print("Login not successful\n")
+            logging.info("Login unsuccessful")
 
             return False
 
@@ -104,15 +113,13 @@ class Messenger:
         if self.base_url_check is None:
             return
 
-        if self.debug:
-            print("Waiting for base url...\n")
+        logging.info("Waiting for base url")
 
         self.driver.get(self.base_url_check)
         chats = WebDriverWait(self.driver, timeout).until(
             presence_of_all_elements_located((By.XPATH, "//h1[text()='Chats']")))
 
-        if self.debug:
-            print("Base url loaded...\n")
+        logging.info("Base url loaded")
 
     def newMessages(self, timeout=20):
         self.waitBaseURL()  # Wait for non-reads
@@ -123,8 +130,7 @@ class Messenger:
                 presence_of_all_elements_located(
                     (By.XPATH, "//a[@href and .//div[@aria-label='Mark as read'] and .//span[text()='1 m']]")))
         except TimeoutException:
-            if self.debug:
-                print("Timeout new messages...\n")
+            logging.info("Timeout new messages")
             return []
         # chats = self.driver.find_elements(By.XPATH, "//a[@href]")  # Get elements
 
@@ -135,8 +141,7 @@ class Messenger:
             if "www.messenger.com/t/" in chat_url:
                 chat_links.append(chat_url)
 
-        if self.debug:
-            print(f"New messages: {chat_links}\n")
+        logging.info(f"New messages: {chat_links}")
 
         return chat_links
 
@@ -151,14 +156,14 @@ class Messenger:
         body = self.driver.find_element(By.TAG_NAME, "body")
         text = body.text
 
-        if self.debug and show_raw:
+        if show_raw:
             new_line_char = "%%"
-            print("Raw text: ", text.replace('\n', new_line_char))
+            no_lines_text = text.replace('\n', new_line_char)
+            logging.info(f"Raw text: {no_lines_text}")
 
         parsed_message = self.parseMessage(text)
 
-        if self.debug:
-            print(f"User chat: {parsed_message}\n")
+        logging.info(f"User chat: {parsed_message}\n")
 
         return parsed_message
 
@@ -222,20 +227,27 @@ class Messenger:
         return characters
 
     def autoResp(self):
+        logging.info("Starting auto response")
+
         while True:
-            new_messages = self.newMessages()
-            for url in new_messages:
-                user_chat = self.getChat(url)
+            try:
+                new_messages = self.newMessages()
+                for url in new_messages:
+                    user_chat = self.getChat(url)
 
-                responses = getResp(user_chat)
+                    responses = getResp(user_chat)
 
-                if self.debug:
-                    print(f"Responses: {responses}\n")
+                    logging.info(f"Responses: {responses}\n")
 
-                for resp in responses[:self.limit_resp]:
-                    if self.disable_profanity:
-                        resp = profanity.censor(resp)  # Censor text
-                    self.sendMsg(resp)
+                    for resp in responses[:self.limit_resp]:
+                        if self.disable_profanity:
+                            resp = profanity.censor(resp)  # Censor text
+                        self.sendMsg(resp)
+
+            except KeyboardInterrupt:
+                # No need for close since Selenium already handles keyboard interrupts?
+                logging.info("KeyboardInterrupt")
+                break
 
     def sendMsg(self, text, timeout=20):
         text_box = WebDriverWait(self.driver, timeout).until(
@@ -244,15 +256,9 @@ class Messenger:
 
 
 if __name__ == "__main__":
-    mess = Messenger(headless=True, debug=True, base_url_check="https://www.messenger.com/t/100012028305554", limit_resp=3)
+    mess = Messenger(headless=True, log=True, base_url_check="https://www.messenger.com/t/100012028305554", limit_resp=3)
     mess.start()
 
     mess.autoResp()
 
-    time.sleep(5)
-
-    mess.close()
-
-    # with open("testing/sample_message3.txt", "r") as f:
-    #     p = Messenger.parseMessage(f.read())
-    #     print(p)
+    # mess.close()
