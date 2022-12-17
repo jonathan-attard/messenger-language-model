@@ -5,7 +5,16 @@
   * [CLI](#cli)
   * [Suggestions](#suggestions)
 
-<small><i><a href='http://ecotrust-canada.github.io/markdown-toc/'>Table of contents generated with markdown-toc</a></i></small>
+## Creating own model
+
+To create your own model the following steps need to be followed:
+1. Extract messenger data
+2. Preprosses data
+3. Train model
+4. Create Executable (Optional)
+
+### Downloading messenger data
+
 
 ## File structure
 
