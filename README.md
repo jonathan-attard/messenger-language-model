@@ -1,6 +1,9 @@
 # messenger-language-model
 
-![image](https://user-images.githubusercontent.com/46422752/206998254-8e0cc473-02da-479f-bc2f-4ac42a93c285.png)
+File structure
+
+![image](https://user-images.githubusercontent.com/46422752/208238537-d60008c8-e150-4bbd-b13e-8ab6fb799ce9.png)
+
 
 
 ## Suggestions
