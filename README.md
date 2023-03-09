@@ -1,4 +1,5 @@
-# Personalized Chatbot
+# Personalized Messenger Chatbot
+Training a Language Model on own messenger chat history, and applying chatbot on own messenger.
 
 - [messenger-language-model](#messenger-language-model)
   * [File structure](#file-structure)
