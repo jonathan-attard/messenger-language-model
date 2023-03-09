@@ -1,4 +1,4 @@
-# Personalized Messenger Chatbot Trained on Your Own Language Patterns
+# Personalized Chatbot
 
 - [messenger-language-model](#messenger-language-model)
   * [File structure](#file-structure)
